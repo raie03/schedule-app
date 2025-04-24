@@ -3,6 +3,7 @@ package handlers
 import (
 	"math/rand"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -293,15 +294,123 @@ func (h *Handler) AnalyzeConflicts(c *gin.Context) {
 }
 
 // SuggestOptimalSchedule suggests an optimal schedule minimizing conflicts
+// func (h *Handler) SuggestOptimalSchedule(c *gin.Context) {
+// 	id := c.Param("id")
+
+// 	// Get event with dates and performances
+// 	var event models.Event
+// 	query := h.db.Preload("Dates").Preload("Performances")
+// 	if err := query.Where("id = ?", id).First(&event).Error; err != nil {
+// 		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+// 		return
+// 	}
+
+// 	// Get all responses with their performance selections and answers
+// 	var responses []models.Response
+// 	responseQuery := h.db.Preload("Answers").Preload("Performances")
+// 	if err := responseQuery.Where("event_id = ?", id).Find(&responses).Error; err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get responses"})
+// 		return
+// 	}
+
+// 	// Simple greedy algorithm for scheduling:
+// 	// For each performance, find the date with most available participants and least conflicts
+
+// 	type PerformanceScore struct {
+// 		PerformanceID  uint
+// 		DateID         uint
+// 		AvailableCount int
+// 		ConflictCount  int
+// 	}
+
+// 	var bestSchedules []PerformanceScore
+
+// 	for _, performance := range event.Performances {
+// 		var bestScore PerformanceScore
+// 		bestScore.PerformanceID = performance.ID
+
+// 		for _, date := range event.Dates {
+// 			var availableCount, conflictCount int
+
+// 			for _, response := range responses {
+// 				// Check if user is in this performance
+// 				isInPerformance := false
+// 				for _, userPerf := range response.Performances {
+// 					if userPerf.PerformanceID == performance.ID {
+// 						isInPerformance = true
+// 						break
+// 					}
+// 				}
+
+// 				if !isInPerformance {
+// 					continue
+// 				}
+
+// 				// Check if available on this date
+// 				isAvailable := false
+// 				for _, answer := range response.Answers {
+// 					if answer.DateID == date.ID && (answer.Status == "available" || answer.Status == "maybe") {
+// 						isAvailable = true
+// 						break
+// 					}
+// 				}
+
+// 				if isAvailable {
+// 					availableCount++
+
+// 					// Check if user has conflict (in multiple performances)
+// 					if len(response.Performances) > 1 {
+// 						conflictCount++
+// 					}
+// 				}
+// 			}
+
+// 			// Update bset score if better
+// 			if availableCount > bestScore.AvailableCount ||
+// 				(availableCount == bestScore.AvailableCount && conflictCount < bestScore.ConflictCount) {
+// 				bestScore.DateID = date.ID
+// 				bestScore.AvailableCount = availableCount
+// 				bestScore.ConflictCount = conflictCount
+// 			}
+// 		}
+
+// 		bestSchedules = append(bestSchedules, bestScore)
+// 	}
+
+// 	// Return the suggested schedule
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"suggested_schedule": bestSchedules,
+// 	})
+// }
+
+// SuggestOptimalSchedule suggests an optimal schedule minimizing conflicts
 func (h *Handler) SuggestOptimalSchedule(c *gin.Context) {
 	id := c.Param("id")
+	startTime := time.Now() // パフォーマンス計測開始
 
-	// Get event with dates and performances
+	// Get event with dates and performances - 必要なデータのみロード
 	var event models.Event
 	query := h.db.Preload("Dates").Preload("Performances")
 	if err := query.Where("id = ?", id).First(&event).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
 		return
+	}
+
+	// データサイズの事前確保による最適化
+	// 初期容量を指定することでスライスの再割り当てを減らす
+	perfCount := len(event.Performances)
+	dateCount := len(event.Dates)
+
+	// 高速ルックアップのためのインデックスマップを作成
+	perfMap := make(map[uint]*models.Performance, perfCount)
+	dateMap := make(map[uint]*models.Date, dateCount)
+
+	for i := range event.Performances {
+		perfMap[event.Performances[i].ID] = &event.Performances[i]
+	}
+
+	for i := range event.Dates {
+		dateMap[event.Dates[i].ID] = &event.Dates[i]
 	}
 
 	// Get all responses with their performance selections and answers
@@ -312,72 +421,263 @@ func (h *Handler) SuggestOptimalSchedule(c *gin.Context) {
 		return
 	}
 
-	// Simple greedy algorithm for scheduling:
-	// For each performance, find the date with most available participants and least conflicts
-
-	type PerformanceScore struct {
-		PerformanceID  uint
-		DateID         uint
-		AvailableCount int
-		ConflictCount  int
+	// データ前処理: パフォーマンス参加と日付可用性のマップを構築
+	// この前処理により、後のルックアップが O(1) 時間で行える
+	type UserData struct {
+		Name         string
+		Performances map[uint]bool   // パフォーマンスID -> 参加するか
+		Availability map[uint]string // 日付ID -> 可用性状態
 	}
 
-	var bestSchedules []PerformanceScore
+	users := make(map[string]*UserData, len(responses))
 
-	for _, performance := range event.Performances {
-		var bestScore PerformanceScore
-		bestScore.PerformanceID = performance.ID
-
-		for _, date := range event.Dates {
-			var availableCount, conflictCount int
-
-			for _, response := range responses {
-				// Check if user is in this performance
-				isInPerformance := false
-				for _, userPerf := range response.Performances {
-					if userPerf.PerformanceID == performance.ID {
-						isInPerformance = true
-						break
-					}
-				}
-
-				if !isInPerformance {
-					continue
-				}
-
-				// Check if available on this date
-				isAvailable := false
-				for _, answer := range response.Answers {
-					if answer.DateID == date.ID && (answer.Status == "available" || answer.Status == "maybe") {
-						isAvailable = true
-						break
-					}
-				}
-
-				if isAvailable {
-					availableCount++
-
-					// Check if user has conflict (in multiple performances)
-					if len(response.Performances) > 1 {
-						conflictCount++
-					}
-				}
-			}
-
-			// Update bset score if better
-			if availableCount > bestScore.AvailableCount ||
-				(availableCount == bestScore.AvailableCount && conflictCount < bestScore.ConflictCount) {
-				bestScore.DateID = date.ID
-				bestScore.AvailableCount = availableCount
-				bestScore.ConflictCount = conflictCount
-			}
+	for _, response := range responses {
+		userData := &UserData{
+			Name:         response.Name,
+			Performances: make(map[uint]bool, len(response.Performances)),
+			Availability: make(map[uint]string, len(response.Answers)),
 		}
 
-		bestSchedules = append(bestSchedules, bestScore)
+		// パフォーマンス参加情報をマップに格納
+		for _, perf := range response.Performances {
+			userData.Performances[perf.PerformanceID] = true
+		}
+
+		// 可用性情報をマップに格納
+		for _, answer := range response.Answers {
+			userData.Availability[answer.DateID] = answer.Status
+		}
+
+		users[response.Name] = userData
 	}
 
-	// Return the suggested schedule
-	c.JSON(http.StatusOK, gin.H{
-		"suggested_schedule": bestSchedules,
+	// 全ての日付×パフォーマンス組み合わせのスコアを一度に計算
+	// 二次元配列を使用して、頻繁なメモリアロケーションを避ける
+	type ScoreData struct {
+		AvailableCount   int
+		MaybeCount       int
+		TotalCount       int
+		ConflictCount    int
+		WeightedScore    float64
+		ConflictingUsers []string
+	}
+
+	// スコアデータの二次元配列を初期化
+	scores := make([][]ScoreData, perfCount)
+	for i := range scores {
+		scores[i] = make([]ScoreData, dateCount)
+	}
+
+	// パフォーマンスと日付のマッピング用インデックス
+	perfIndex := make(map[uint]int, perfCount)
+	dateIndex := make(map[uint]int, dateCount)
+
+	for i, p := range event.Performances {
+		perfIndex[p.ID] = i
+	}
+
+	for i, d := range event.Dates {
+		dateIndex[d.ID] = i
+	}
+
+	// すべてのユーザーについて一度だけ処理することで、O(n³)からO(n²)に計算量を削減
+	for _, userData := range users {
+		// このユーザーが参加するパフォーマンスについて
+		userPerfs := make([]uint, 0, len(userData.Performances))
+		for perfID := range userData.Performances {
+			userPerfs = append(userPerfs, perfID)
+		}
+
+		hasMultiplePerfs := len(userPerfs) > 1
+
+		// このユーザーの各パフォーマンスと各日付の組み合わせをチェック
+		for _, perfID := range userPerfs {
+			pIdx := perfIndex[perfID]
+
+			// このユーザーの各日付での可用性をチェック
+			for dateID, status := range userData.Availability {
+				dIdx, ok := dateIndex[dateID]
+				if !ok {
+					continue // 無効な日付IDはスキップ
+				}
+
+				scoreData := &scores[pIdx][dIdx]
+				scoreData.TotalCount++
+
+				// 可用性に応じてカウントとスコアを更新
+				switch status {
+				case "available":
+					scoreData.AvailableCount++
+					scoreData.WeightedScore += 1.0
+				case "maybe":
+					scoreData.MaybeCount++
+					scoreData.WeightedScore += 0.5
+				}
+
+				// 複数パフォーマンスに参加する場合は潜在的コンフリクト
+				if hasMultiplePerfs {
+					scoreData.ConflictCount++
+					if !containsString(scoreData.ConflictingUsers, userData.Name) {
+						scoreData.ConflictingUsers = append(scoreData.ConflictingUsers, userData.Name)
+					}
+				}
+			}
+		}
+	}
+
+	// スコアの高い順にソートされた全組み合わせを作成
+	type ScoredOption struct {
+		PerformanceID    uint     `json:"performance_id"`
+		DateID           uint     `json:"date_id"`
+		PerformanceName  string   `json:"performance_name"`
+		DateValue        string   `json:"date_value"`
+		AvailableCount   int      `json:"available_count"`
+		MaybeCount       int      `json:"maybe_count"`
+		TotalCount       int      `json:"total_count"`
+		ConflictCount    int      `json:"conflict_count"`
+		WeightedScore    float64  `json:"weighted_score"`
+		ConflictingUsers []string `json:"conflicting_users"`
+	}
+
+	allOptions := make([]ScoredOption, 0, perfCount*dateCount)
+
+	// 全ての組み合わせをフラットなリストに変換
+	for pIdx, perfScores := range scores {
+		perfID := event.Performances[pIdx].ID
+		perfName := event.Performances[pIdx].Title
+
+		for dIdx, score := range perfScores {
+			dateID := event.Dates[dIdx].ID
+			dateValue := event.Dates[dIdx].Value
+
+			option := ScoredOption{
+				PerformanceID:    perfID,
+				DateID:           dateID,
+				PerformanceName:  perfName,
+				DateValue:        dateValue,
+				AvailableCount:   score.AvailableCount,
+				MaybeCount:       score.MaybeCount,
+				TotalCount:       score.TotalCount,
+				ConflictCount:    score.ConflictCount,
+				WeightedScore:    score.WeightedScore,
+				ConflictingUsers: score.ConflictingUsers,
+			}
+
+			allOptions = append(allOptions, option)
+		}
+	}
+
+	// スコアの高い順にソート - クイックソートを利用
+	sort.Slice(allOptions, func(i, j int) bool {
+		// 主要ソート基準: 重み付きスコア (高いほど良い)
+		if allOptions[i].WeightedScore != allOptions[j].WeightedScore {
+			return allOptions[i].WeightedScore > allOptions[j].WeightedScore
+		}
+
+		// 二次ソート基準: コンフリクト数 (少ないほど良い)
+		if allOptions[i].ConflictCount != allOptions[j].ConflictCount {
+			return allOptions[i].ConflictCount < allOptions[j].ConflictCount
+		}
+
+		// 三次ソート基準: available人数 (多いほど良い)
+		if allOptions[i].AvailableCount != allOptions[j].AvailableCount {
+			return allOptions[i].AvailableCount > allOptions[j].AvailableCount
+		}
+
+		// 四次ソート基準: maybe人数 (多いほど良い)
+		return allOptions[i].MaybeCount > allOptions[j].MaybeCount
 	})
+
+	// 最適なスケジュールの構築 - 高速なルックアップのためにマップを使用
+	assignedPerfs := make(map[uint]bool, perfCount)
+	assignedDates := make(map[uint]bool, dateCount)
+	var bestSchedule []ScoredOption
+
+	// まずは日付の重複を避けてスケジュール
+	for _, option := range allOptions {
+		// すでに割り当て済みのパフォーマンスや日付はスキップ
+		if assignedPerfs[option.PerformanceID] || assignedDates[option.DateID] {
+			continue
+		}
+
+		// 割り当て
+		assignedPerfs[option.PerformanceID] = true
+		assignedDates[option.DateID] = true
+		bestSchedule = append(bestSchedule, option)
+
+		// すべてのパフォーマンスがスケジュールされたら終了
+		if len(assignedPerfs) == perfCount {
+			break
+		}
+	}
+
+	// 日付の重複を許容しても割り当てられなかったパフォーマンスがあれば対応
+	if len(assignedPerfs) < perfCount {
+		// 日付の割り当てをリセット、パフォーマンスの割り当ては維持
+		for _, option := range allOptions {
+			// すでに割り当て済みのパフォーマンスはスキップ
+			if assignedPerfs[option.PerformanceID] {
+				continue
+			}
+
+			// 割り当て (日付の重複を許容)
+			assignedPerfs[option.PerformanceID] = true
+			bestSchedule = append(bestSchedule, option)
+
+			// すべてのパフォーマンスがスケジュールされたら終了
+			if len(assignedPerfs) == perfCount {
+				break
+			}
+		}
+	}
+
+	// 計算時間と統計情報を計測
+	elapsedTime := time.Since(startTime)
+
+	// 全体のスコアと統計を計算
+	var totalWeightedScore float64
+	var totalConflicts int
+	var totalAvailable int
+	var totalMaybe int
+
+	for _, opt := range bestSchedule {
+		totalWeightedScore += opt.WeightedScore
+		totalConflicts += opt.ConflictCount
+		totalAvailable += opt.AvailableCount
+		totalMaybe += opt.MaybeCount
+	}
+
+	// 結果を返す - 計算時間の情報も含める
+	c.JSON(http.StatusOK, gin.H{
+		"suggested_schedule": bestSchedule,
+		"metrics": gin.H{
+			"total_weighted_score":   totalWeightedScore,
+			"total_conflicts":        totalConflicts,
+			"total_available":        totalAvailable,
+			"total_maybe":            totalMaybe,
+			"performance_count":      perfCount,
+			"scheduled_performances": len(bestSchedule),
+			"computation_time_ms":    float64(elapsedTime.Microseconds()) / 1000.0,
+		},
+	})
+}
+
+// containsString は文字列スライス内に特定の文字列が含まれているかをチェック
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// bitCount は1が立っているビット数をカウント
+func bitCount(n uint64) int {
+	count := 0
+	for n > 0 {
+		count += int(n & 1)
+		n >>= 1
+	}
+	return count
 }

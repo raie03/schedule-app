@@ -28,11 +28,13 @@ func main() {
 
 	// CORSの設定
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", os.Getenv("FRONTEND_URL")},
+		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
+	// router.Use(cors.Default())
+	router.Use(gin.Logger())
 
 	// ハンドラーの初期化
 	h := handlers.NewHandler(database)
@@ -42,10 +44,11 @@ func main() {
 	{
 		events := api.Group("/events")
 		{
-			events.POST("/", h.CreateEvent)
+			events.POST("", h.CreateEvent)
 			events.GET("/:id", h.GetEvent)
 			events.POST("/:id/responses", h.AddResponse)
 			events.GET("/:id/responses", h.GetResponses)
+			events.GET("/:id/optimal-schedule", h.SuggestOptimalSchedule)
 		}
 	}
 

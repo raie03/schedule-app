@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/raie03/schedule-app/backend/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -28,24 +27,31 @@ func Connect() (*gorm.DB, error) {
 	)
 	// dsn := os.Getenv("DB_URL")
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	// 	PrepareStmt: false,
+	// })
+	//　prepared statement already exists (SQLSTATE 42P05)を解決した
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
 
 	//マイグレーション
-	err = db.AutoMigrate(
-		&models.Event{},
-		&models.Date{},
-		&models.Performance{},
-		&models.Response{},
-		&models.ResponseAnswer{},
-		&models.UserPerformance{},
-		//&models.ConflictReport{},
-	)
-	if err != nil {
-		return nil, err
-	}
+	// err = db.AutoMigrate(
+	// 	&models.Event{},
+	// 	&models.Date{},
+	// 	&models.Performance{},
+	// 	&models.Response{},
+	// 	&models.ResponseAnswer{},
+	// 	&models.UserPerformance{},
+	// 	//&models.ConflictReport{},
+	// )
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return db, nil
 }
