@@ -86,6 +86,27 @@ type ConflictAnalysisRequest struct {
 	DateIDs []uint `json:"date_ids"` // Optional filter for specific dates
 }
 
+// ScoredOption はスコア付けされたパフォーマンス×日程の組み合わせを表します
+type ScoredOption struct {
+	PerformanceID    uint     `json:"performance_id"`
+	DateID           uint     `json:"date_id"`
+	PerformanceName  string   `json:"performance_name"`
+	DateValue        string   `json:"date_value"`
+	AvailableCount   int      `json:"available_count"`
+	MaybeCount       int      `json:"maybe_count"`
+	UnavailableCount int      `json:"unavailable_count"`
+	TotalCount       int      `json:"total_count"`
+	ConflictCount    int      `json:"conflict_count"`
+	WeightedScore    float64  `json:"weighted_score"`
+	ConflictingUsers []string `json:"conflicting_users"`
+}
+
+type UserData struct {
+	Name         string
+	Performances map[uint]bool   // パフォーマンスID -> 参加するか
+	Availability map[uint]string // 日付ID -> 可用性状態
+}
+
 // func (d Date) Value() (driver.Value, error) {
 // 	bytes, err := json.Marshal(d)
 // 	if err != nil {

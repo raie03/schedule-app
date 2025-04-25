@@ -82,6 +82,7 @@ export interface Event {
     date_value: string;
     available_count: number;
     maybe_count: number;
+    unavailable_count: number;
     total_count: number;
     conflict_count: number;
     weighted_score: number;
@@ -93,6 +94,7 @@ export interface Event {
     total_conflicts: number;
     total_available: number;
     total_maybe: number;
+    total_unavailable: number;
     performance_count: number;
     scheduled_performances: number;
     computation_time_ms: number;

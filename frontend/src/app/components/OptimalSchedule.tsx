@@ -103,6 +103,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
               <th className="py-2 px-4 text-left">パフォーマンス</th>
               <th className="py-2 px-4 text-left">可能</th>
               <th className="py-2 px-4 text-left">たぶん</th>
+              <th className="py-2 px-4 text-left">不可</th>
               <th className="py-2 px-4 text-left">コンフリクト</th>
               <th className="py-2 px-4 text-left">スコア</th>
             </tr>
@@ -131,6 +132,9 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
                     </td>
                     <td className="py-2 px-4 text-yellow-600">
                       {perf.maybe_count ?? 0}
+                    </td>
+                    <td className="py-2 px-4 text-gray-600">
+                      {perf.unavailable_count ?? 0}
                     </td>
                     <td className="py-2 px-4 text-red-600">
                       {perf.conflict_count || 0}
