@@ -8,16 +8,12 @@ import { Event, Response } from "../../../types/types";
 import EventResults from "@/app/components/EventResults";
 import RespondForm from "@/app/components/RespondForm";
 import OptimalSchedule from "@/app/components/OptimalSchedule";
+import { useParams } from "next/navigation";
 
-interface EventPageParams {
-  params: {
-    id: string;
-  };
-}
-
-const EventPage = ({ params }: EventPageParams) => {
+const EventPage = () => {
   // const router = useRouter();
-  const { id } = params;
+  const params = useParams();
+  const id = params.id as string;
   const [event, setEvent] = useState<Event | null>(null);
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);
