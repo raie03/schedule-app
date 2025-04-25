@@ -2,17 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { suggestOptimalMultiSchedule } from "@/app/api/client";
-import { PerformanceScore, ScheduleMetrics, Event } from "@/types/types";
+import { PerformanceScore, Event } from "@/types/types";
 
 interface OptimalScheduleProps {
   eventId: string;
   event: Event;
 }
 
-const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
-  eventId,
-  event,
-}) => {
+const OptimalSchedule: React.FC<OptimalScheduleProps> = ({ eventId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [schedule, setSchedule] = useState<PerformanceScore[]>([]);
@@ -110,7 +107,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
           </thead>
           <tbody>
             {Object.entries(scheduleByDate).length > 0 ? (
-              Object.entries(scheduleByDate).map(([_, performances]) =>
+              Object.values(scheduleByDate).map((performances) =>
                 performances.map((perf, idx) => (
                   <tr
                     key={`${perf.date_id}-${perf.performance_id}`}
