@@ -3,6 +3,8 @@ import { useState, FormEvent, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Head from "next/head";
 import { createEvent } from "./api/client";
+import BulkDateAdder from "./components/BulkDateAdder";
+import DateTimePicker from "./components/DateTimePicker";
 
 interface PerformanceInput {
   title: string;
@@ -36,6 +38,11 @@ export default function Home() {
     const newDates = [...dates];
     newDates[index] = value;
     setDates(newDates);
+  };
+
+  // handleAddBulkDates 関数を追加
+  const handleAddBulkDates = (newDates: string[]) => {
+    setDates([...dates, ...newDates]);
   };
 
   const handleAddPerformance = () => {
@@ -166,7 +173,6 @@ export default function Home() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               />
             </div>
-
             <div>
               <label
                 htmlFor="description"
@@ -186,7 +192,7 @@ export default function Home() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               />
             </div>
-
+            // 候補日程のセクションを更新
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <label className="block text-sm font-medium text-gray-700">
@@ -219,16 +225,13 @@ export default function Home() {
               <div className="space-y-3">
                 {dates.map((date, index) => (
                   <div key={`date-${index}`} className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={date}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        handleDateChange(index, e.target.value)
-                      }
-                      placeholder="2025-04-15 15:00-17:00"
-                      disabled={isSubmitting}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
-                    />
+                    <div className="flex-1">
+                      <DateTimePicker
+                        value={date}
+                        onChange={(value) => handleDateChange(index, value)}
+                        disabled={isSubmitting}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveDate(index)}
@@ -252,9 +255,10 @@ export default function Home() {
                     </button>
                   </div>
                 ))}
+
+                <BulkDateAdder onAdd={handleAddBulkDates} />
               </div>
             </div>
-
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <label className="block text-sm font-medium text-gray-700">
@@ -351,7 +355,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-
             <div className="pt-6">
               <button
                 type="submit"
