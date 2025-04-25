@@ -47,7 +47,7 @@ const EventPage = () => {
   };
 
   const copyToClipboard = () => {
-    const url = `${process.env.NEXT_FRONTEND_URL}/events/${id}`;
+    const url = `${process.env.NEXT_PUBLIC_FRONTEND_URL}/events/${id}`;
     navigator.clipboard
       .writeText(url)
       .then(() => {
