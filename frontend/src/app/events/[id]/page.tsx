@@ -1,19 +1,23 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import Head from "next/head";
 import Link from "next/link";
 import { getEvent, getResponses } from "../../api/client";
 import { Event, Response } from "../../../types/types";
-import * as React from "react";
 import EventResults from "@/app/components/EventResults";
 import RespondForm from "@/app/components/RespondForm";
 import OptimalSchedule from "@/app/components/OptimalSchedule";
 
-const EventPage = ({ params }: any) => {
-  const router = useRouter();
-  const { id }: any = React.use(params);
+interface EventPageParams {
+  params: {
+    id: string;
+  };
+}
 
+const EventPage = ({ params }: EventPageParams) => {
+  // const router = useRouter();
+  const { id } = params;
   const [event, setEvent] = useState<Event | null>(null);
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,5 +1,5 @@
 import React from "react";
-import { Event, Response } from "../../types/types";
+import { Event, Response, ResponseAnswer } from "../../types/types";
 
 interface EventResultsProps {
   event: Event;
@@ -68,7 +68,7 @@ const EventResults: React.FC<EventResultsProps> = ({ event, responses }) => {
   };
 
   // ユーザーごとの参加可能日数を計算
-  const getUserAvailability = (answers: any[]) => {
+  const getUserAvailability = (answers: ResponseAnswer[]) => {
     return answers.reduce(
       (acc, answer) => {
         if (answer.status === "available") acc.available++;

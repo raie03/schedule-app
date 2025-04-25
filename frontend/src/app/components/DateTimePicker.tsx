@@ -41,6 +41,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
         endTime: endTime || "11:00",
       };
     } catch (e) {
+      console.error("Error parsing initial value:", e);
       return { date: null, startTime: "09:00", endTime: "11:00" };
     }
   };

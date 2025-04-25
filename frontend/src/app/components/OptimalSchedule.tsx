@@ -1,10 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  suggestOptimalSchedule,
-  suggestOptimalMultiSchedule,
-} from "@/app/api/client";
+import { suggestOptimalMultiSchedule } from "@/app/api/client";
 import { PerformanceScore, ScheduleMetrics, Event } from "@/types/types";
 
 interface OptimalScheduleProps {
@@ -19,7 +16,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [schedule, setSchedule] = useState<PerformanceScore[]>([]);
-  const [metrics, setMetrics] = useState<ScheduleMetrics | null>(null);
+  // const [metrics, setMetrics] = useState<ScheduleMetrics | null>(null);
 
   useEffect(() => {
     const fetchOptimalSchedule = async () => {
@@ -28,7 +25,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
         const result = await suggestOptimalMultiSchedule(eventId);
         console.log("Optimal schedule response:", result); // デバッグ用
         setSchedule(result.suggested_schedule || []);
-        setMetrics(result.metrics || null);
+        // setMetrics(result.metrics || null);
         setError("");
       } catch (err) {
         console.error("Error fetching optimal schedule:", err);
@@ -113,7 +110,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
           </thead>
           <tbody>
             {Object.entries(scheduleByDate).length > 0 ? (
-              Object.entries(scheduleByDate).map(([dateId, performances]) =>
+              Object.entries(scheduleByDate).map(([_, performances]) =>
                 performances.map((perf, idx) => (
                   <tr
                     key={`${perf.date_id}-${perf.performance_id}`}
