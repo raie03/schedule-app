@@ -73,7 +73,7 @@ export default function Home() {
     }
 
     if (performances.some((perf) => !perf.title.trim())) {
-      setError("すべての演目名を入力してください");
+      setError("すべてのプロジェクト名を入力してください");
       return;
     }
 
@@ -103,18 +103,21 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <Head>
-        <title>演目・日程調整アプリ</title>
-        <meta name="description" content="演目ごとの日程調整ができるアプリ" />
+        <title>プロジェクト・日程調整アプリ</title>
+        <meta
+          name="description"
+          content="プロジェクトごとの日程調整ができるアプリ"
+        />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-3">
-            演目・日程調整アプリ
+            プロジェクト・日程調整アプリ
           </h1>
           <p className="text-xl text-gray-600">
-            演目ごとの参加者の日程を効率的に調整
+            プロジェクトごとの参加者の日程を効率的に調整
           </p>
         </div>
 
@@ -255,7 +258,7 @@ export default function Home() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <label className="block text-sm font-medium text-gray-700">
-                  演目 <span className="text-red-500">*</span>
+                  プロジェクト <span className="text-red-500">*</span>
                 </label>
                 <button
                   type="button"
@@ -277,7 +280,7 @@ export default function Home() {
                       d="M12 4v16m8-8H4"
                     />
                   </svg>
-                  演目を追加
+                  プロジェクトを追加
                 </button>
               </div>
 
@@ -289,7 +292,7 @@ export default function Home() {
                   >
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-700">
-                        演目 #{index + 1}
+                        プロジェクト #{index + 1}
                       </span>
                       <button
                         type="button"
@@ -325,7 +328,7 @@ export default function Home() {
                             e.target.value
                           )
                         }
-                        placeholder="演目名"
+                        placeholder="プロジェクト名"
                         disabled={isSubmitting}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                       />
@@ -339,7 +342,7 @@ export default function Home() {
                             e.target.value
                           )
                         }
-                        placeholder="演目の説明（任意）"
+                        placeholder="プロジェクトの説明（任意）"
                         disabled={isSubmitting}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                       />
@@ -428,7 +431,7 @@ export default function Home() {
             </div>
             <h3 className="text-lg font-semibold mb-2">複数日程の調整</h3>
             <p className="text-gray-600">
-              公演や練習の候補日を複数設定して、参加者の都合を一括で調整できます。
+              プロジェクトの候補日を複数設定して、参加者の都合を一括で調整できます。
             </p>
           </div>
 
@@ -449,9 +452,9 @@ export default function Home() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold mb-2">演目別管理</h3>
+            <h3 className="text-lg font-semibold mb-2">プロジェクト別管理</h3>
             <p className="text-gray-600">
-              参加者ごとに異なる演目の組み合わせを柔軟に管理できます。
+              参加者ごとに異なるプロジェクトの組み合わせを柔軟に管理できます。
             </p>
           </div>
 
@@ -481,7 +484,7 @@ export default function Home() {
 
         {/* フッター */}
         <footer className="mt-16 text-center text-gray-500 text-sm">
-          <p>© 2025 演目・日程調整アプリ All rights reserved.</p>
+          <p>© 2025 プロジェクト・日程調整アプリ All rights reserved.</p>
         </footer>
       </main>
     </div>

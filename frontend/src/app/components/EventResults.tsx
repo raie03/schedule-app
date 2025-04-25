@@ -108,7 +108,7 @@ const EventResults: React.FC<EventResultsProps> = ({ event, responses }) => {
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                参加演目
+                参加プロジェクト
               </th>
             </tr>
           </thead>
@@ -179,7 +179,7 @@ const EventResults: React.FC<EventResultsProps> = ({ event, responses }) => {
       {/* パフォーマンス情報 */}
       <div className="mb-8">
         <h2 className="text-lg font-medium text-gray-900 mb-4">
-          パフォーマンス別の参加者
+          プロジェクト別の参加者
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {event.performances.map((performance) => {

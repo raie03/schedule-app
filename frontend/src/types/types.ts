@@ -104,3 +104,9 @@ export interface Event {
     suggested_schedule: PerformanceScore[];
     metrics: ScheduleMetrics;
   }
+
+  export interface MultiSessionSchedule {
+    session: number;
+    schedule: PerformanceScore[];
+    metrics: ScheduleMetrics;
+  }

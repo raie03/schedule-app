@@ -49,6 +49,7 @@ func main() {
 			events.POST("/:id/responses", h.AddResponse)
 			events.GET("/:id/responses", h.GetResponses)
 			events.GET("/:id/optimal-schedule", h.SuggestOptimalSchedule)
+			events.GET("/:id/multi-optimal-schedule", h.SuggestOptimalMultiSessionSchedule)
 		}
 	}
 

@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { suggestOptimalSchedule } from "@/app/api/client";
+import {
+  suggestOptimalSchedule,
+  suggestOptimalMultiSchedule,
+} from "@/app/api/client";
 import { PerformanceScore, ScheduleMetrics, Event } from "@/types/types";
 
 interface OptimalScheduleProps {
@@ -22,7 +25,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
     const fetchOptimalSchedule = async () => {
       try {
         setLoading(true);
-        const result = await suggestOptimalSchedule(eventId);
+        const result = await suggestOptimalMultiSchedule(eventId);
         console.log("Optimal schedule response:", result); // デバッグ用
         setSchedule(result.suggested_schedule || []);
         setMetrics(result.metrics || null);
@@ -65,7 +68,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
     <div className="bg-white shadow-md rounded-lg p-6">
       <h2 className="text-2xl font-bold mb-4">最適なスケジュール提案</h2>
 
-      {/* パフォーマンスメトリクス */}
+      {/* パフォーマンスメトリクス
       {metrics && (
         <div className="mb-6 p-4 bg-gray-50 rounded-md">
           <h3 className="text-lg font-semibold mb-2">スケジュールの品質</h3>
@@ -92,7 +95,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* スケジュールテーブル */}
       <div className="overflow-x-auto">
@@ -100,12 +103,12 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
           <thead>
             <tr className="bg-gray-100">
               <th className="py-2 px-4 text-left">日付</th>
-              <th className="py-2 px-4 text-left">パフォーマンス</th>
+              <th className="py-2 px-4 text-left">プロジェクト</th>
               <th className="py-2 px-4 text-left">可能</th>
               <th className="py-2 px-4 text-left">たぶん</th>
               <th className="py-2 px-4 text-left">不可</th>
               <th className="py-2 px-4 text-left">コンフリクト</th>
-              <th className="py-2 px-4 text-left">スコア</th>
+              {/* <th className="py-2 px-4 text-left">スコア</th> */}
             </tr>
           </thead>
           <tbody>
@@ -125,7 +128,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
                     </td>
                     <td className="py-2 px-4 font-medium">
                       {perf.performance_name ||
-                        `パフォーマンスID: ${perf.performance_id}`}
+                        `プロジェクトID: ${perf.performance_id}`}
                     </td>
                     <td className="py-2 px-4 text-green-600">
                       {perf.available_count || 0}
@@ -139,11 +142,11 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
                     <td className="py-2 px-4 text-red-600">
                       {perf.conflict_count || 0}
                     </td>
-                    <td className="py-2 px-4 text-blue-600">
+                    {/* <td className="py-2 px-4 text-blue-600">
                       {perf.weighted_score !== undefined
                         ? perf.weighted_score.toFixed(2)
                         : "N/A"}
-                    </td>
+                    </td> */}
                   </tr>
                 ))
               )
@@ -173,7 +176,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({
                   <p className="font-medium">
                     {item.date_value || `日付ID: ${item.date_id}`} -{" "}
                     {item.performance_name ||
-                      `パフォーマンスID: ${item.performance_id}`}
+                      `プロジェクトID: ${item.performance_id}`}
                   </p>
                   <p className="text-sm text-gray-700">
                     コンフリクトユーザー:{" "}

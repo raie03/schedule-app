@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1015,16 +1016,6 @@ func (h *Handler) SuggestOptimalSchedule(c *gin.Context) {
 	var totalMaybe int
 	var totalUnavailable int
 
-	// for _, opt := range bestSchedule {
-	// 	totalWeightedScore += opt.WeightedScore
-	// 	totalConflicts += opt.ConflictCount
-	// 	totalAvailable += opt.AvailableCount
-	// 	totalMaybe += opt.MaybeCount
-	// }
-
-	// 2. 初期スケジュールの構築（greedy approach）
-	// initialSchedule := buildInitialSchedule(allOptions, perfCount)
-
 	// 3. グローバル最適化（改善フェーズ）
 	// - 遺伝的アルゴリズム
 	// - 焼きなまし法
@@ -1063,18 +1054,324 @@ func (h *Handler) SuggestOptimalSchedule(c *gin.Context) {
 			"computation_time_ms":    float64(elapsedTime.Microseconds()) / 1000.0,
 		},
 	})
+}
 
-	// 結果を返す - 計算時間の情報も含める
+// SuggestOptimalMultiSessionSchedule は複数の練習セッションに対する最適スケジュールを提案します
+func (h *Handler) SuggestOptimalMultiSessionSchedule(c *gin.Context) {
+	id := c.Param("id")
+	startTime := time.Now()
+
+	// セッション数を取得（クエリパラメータから）
+	sessionCount, err := strconv.Atoi(c.DefaultQuery("sessions", "1"))
+	if err != nil || sessionCount < 1 {
+		sessionCount = 3 // デフォルト値
+	}
+
+	// イベント、日付、パフォーマンスを取得
+	var event models.Event
+	query := h.db.Preload("Dates").Preload("Performances")
+	if err := query.Where("id = ?", id).First(&event).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
+
+	// レスポンスを取得
+	var responses []models.Response
+	responseQuery := h.db.Preload("Answers").Preload("Performances")
+	if err := responseQuery.Where("event_id = ?", id).Find(&responses).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get responses"})
+		return
+	}
+
+	// オリジナルのパフォーマンス数
+	origPerfCount := len(event.Performances)
+	dateCount := len(event.Dates)
+
+	// 練習回数分にパフォーマンスを拡張
+	expandedPerfs := algorithm.ExpandPerformancesForMultipleSessions(event.Performances, sessionCount)
+	expandedPerfCount := len(expandedPerfs)
+
+	// ユーザーデータの処理
+	users := make(map[string]*models.UserData, len(responses))
+	for _, response := range responses {
+		userData := &models.UserData{
+			Name:         response.Name,
+			Performances: make(map[uint]bool),
+			Availability: make(map[uint]string),
+		}
+
+		// パフォーマンス参加情報
+		for _, perf := range response.Performances {
+			// オリジナルのパフォーマンス参加情報を全練習セッションに適用
+			origPerfID := perf.PerformanceID
+			for i := 1; i <= sessionCount; i++ {
+				sessionPerfID := origPerfID*100 + uint(i)
+				userData.Performances[sessionPerfID] = true
+			}
+		}
+
+		// 可用性情報
+		for _, answer := range response.Answers {
+			userData.Availability[answer.DateID] = answer.Status
+		}
+
+		users[response.Name] = userData
+	}
+
+	// スコア計算（既存のコードを流用）
+	// ※ここで拡張されたパフォーマンスIDを使用する必要があります
+	// 全ての日付×パフォーマンス組み合わせのスコアを一度に計算
+	// 二次元配列を使用して、頻繁なメモリアロケーションを避ける
+	type ScoreData struct {
+		AvailableCount   int
+		MaybeCount       int
+		UnavailableCount int
+		TotalCount       int
+		ConflictCount    int
+		WeightedScore    float64
+		ConflictingUsers []string
+	}
+
+	// スコアデータの二次元配列を初期化
+	scores := make([][]ScoreData, expandedPerfCount)
+	for i := range scores {
+		scores[i] = make([]ScoreData, dateCount)
+	}
+
+	// パフォーマンスと日付のマッピング用インデックス
+	perfIndex := make(map[uint]int, expandedPerfCount)
+	dateIndex := make(map[uint]int, dateCount)
+
+	for i, p := range expandedPerfs {
+		perfIndex[p.ID] = i
+	}
+
+	for i, d := range event.Dates {
+		dateIndex[d.ID] = i
+	}
+
+	// すべてのユーザーについて一度だけ処理することで、O(n³)からO(n²)に計算量を削減
+	for _, userData := range users {
+		// このユーザーが参加するパフォーマンスについて
+		userPerfs := make([]uint, 0, len(userData.Performances))
+		for perfID := range userData.Performances {
+			userPerfs = append(userPerfs, perfID)
+		}
+
+		hasMultiplePerfs := len(userPerfs) > 1
+
+		// このユーザーの各パフォーマンスと各日付の組み合わせをチェック
+		for _, perfID := range userPerfs {
+			pIdx := perfIndex[perfID]
+
+			// このユーザーの各日付での可用性をチェック
+			for dateID, status := range userData.Availability {
+				dIdx, ok := dateIndex[dateID]
+				if !ok {
+					continue // 無効な日付IDはスキップ
+				}
+
+				scoreData := &scores[pIdx][dIdx]
+				scoreData.TotalCount++
+
+				// 可用性に応じてカウントとスコアを更新
+				switch status {
+				case "available":
+					scoreData.AvailableCount++
+					scoreData.WeightedScore += 1.0
+				case "maybe":
+					scoreData.MaybeCount++
+					scoreData.WeightedScore += 0.5
+				default:
+					scoreData.UnavailableCount++
+				}
+
+				// 複数パフォーマンスに参加する場合は潜在的コンフリクト
+				if hasMultiplePerfs {
+					scoreData.ConflictCount++
+					if !containsString(scoreData.ConflictingUsers, userData.Name) {
+						scoreData.ConflictingUsers = append(scoreData.ConflictingUsers, userData.Name)
+					}
+				}
+			}
+		}
+	}
+
+	allOptions := make([]models.ScoredOption, 0, expandedPerfCount*dateCount)
+
+	// 全ての組み合わせをフラットなリストに変換
+	for pIdx, perfScores := range scores {
+		perfID := expandedPerfs[pIdx].ID
+		perfName := expandedPerfs[pIdx].Title
+
+		for dIdx, score := range perfScores {
+			dateID := event.Dates[dIdx].ID
+			dateValue := event.Dates[dIdx].Value
+
+			option := models.ScoredOption{
+				PerformanceID:    perfID,
+				DateID:           dateID,
+				PerformanceName:  perfName,
+				DateValue:        dateValue,
+				AvailableCount:   score.AvailableCount,
+				MaybeCount:       score.MaybeCount,
+				UnavailableCount: score.UnavailableCount,
+				TotalCount:       score.TotalCount,
+				ConflictCount:    score.ConflictCount,
+				WeightedScore:    score.WeightedScore,
+				ConflictingUsers: score.ConflictingUsers,
+			}
+
+			allOptions = append(allOptions, option)
+		}
+	}
+
+	// スコアの高い順にソート - クイックソートを利用
+	sort.Slice(allOptions, func(i, j int) bool {
+		// 主要ソート基準: 重み付きスコア (高いほど良い)
+		if allOptions[i].WeightedScore != allOptions[j].WeightedScore {
+			return allOptions[i].WeightedScore > allOptions[j].WeightedScore
+		}
+
+		// 二次ソート基準: コンフリクト数 (少ないほど良い)
+		if allOptions[i].ConflictCount != allOptions[j].ConflictCount {
+			return allOptions[i].ConflictCount < allOptions[j].ConflictCount
+		}
+
+		// 三次ソート基準: available人数 (多いほど良い)
+		if allOptions[i].AvailableCount != allOptions[j].AvailableCount {
+			return allOptions[i].AvailableCount > allOptions[j].AvailableCount
+		}
+
+		// 四次ソート基準: maybe人数 (多いほど良い)
+		return allOptions[i].MaybeCount > allOptions[j].MaybeCount
+	})
+
+	// 最適なスケジュールの構築 - 高速なルックアップのためにマップを使用
+	assignedPerfs := make(map[uint]bool, expandedPerfCount)
+	assignedDates := make(map[uint]bool, dateCount)
+	var bestSchedule []models.ScoredOption
+
+	// まずは日付の重複を避けてスケジュール
+	for _, option := range allOptions {
+		// すでに割り当て済みのパフォーマンスや日付はスキップ
+		if assignedPerfs[option.PerformanceID] || assignedDates[option.DateID] {
+			continue
+		}
+
+		// 割り当て
+		assignedPerfs[option.PerformanceID] = true
+		assignedDates[option.DateID] = true
+		bestSchedule = append(bestSchedule, option)
+
+		// すべてのパフォーマンスがスケジュールされたら終了
+		if len(assignedPerfs) == expandedPerfCount {
+			break
+		}
+	}
+
+	// 日付の重複を許容しても割り当てられなかったパフォーマンスがあれば対応
+	if len(assignedPerfs) < expandedPerfCount {
+		// 日付の割り当てをリセット、パフォーマンスの割り当ては維持
+		for _, option := range allOptions {
+			// すでに割り当て済みのパフォーマンスはスキップ
+			if assignedPerfs[option.PerformanceID] {
+				continue
+			}
+
+			// 割り当て (日付の重複を許容)
+			assignedPerfs[option.PerformanceID] = true
+			bestSchedule = append(bestSchedule, option)
+
+			// すべてのパフォーマンスがスケジュールされたら終了
+			if len(assignedPerfs) == expandedPerfCount {
+				break
+			}
+		}
+	}
+
+	// スケジュール最適化
+	optimizedSchedule := algorithm.OptimizeScheduleWithMultipleSessions(
+		allOptions, origPerfCount, dateCount, sessionCount, users)
+
+	// 結果をセッションごとにグループ化
+	// sessionSchedules := make(map[int][]models.ScoredOption)
+	// for _, opt := range optimizedSchedule {
+	// 	// パフォーマンスIDから元のIDとセッション番号を抽出
+	// 	origPerfID := opt.PerformanceID / 100
+	// 	sessionNum := int(opt.PerformanceID % 100)
+
+	// 	// 結果をセッション番号ごとにグループ化
+	// 	sessionOpt := opt
+	// 	sessionOpt.PerformanceID = origPerfID // 元のパフォーマンスIDに戻す
+
+	// 	if sessionSchedules[sessionNum] == nil {
+	// 		sessionSchedules[sessionNum] = make([]models.ScoredOption, 0)
+	// 	}
+	// 	sessionSchedules[sessionNum] = append(sessionSchedules[sessionNum], sessionOpt)
+	// }
+
+	// // レスポンス用に整形
+	// result := make([]map[string]interface{}, 0, sessionCount)
+	// for i := 1; i <= sessionCount; i++ {
+	// 	schedule := sessionSchedules[i]
+
+	// 各セッションのメトリクスを計算
+	var totalWeightedScore float64
+	var totalConflicts int
+	var totalAvailable int
+	var totalMaybe int
+	var totalUnavailable int
+
+	// 	for _, opt := range schedule {
+	// 		totalWeightedScore += opt.WeightedScore
+	// 		totalConflicts += opt.ConflictCount
+	// 		totalAvailable += opt.AvailableCount
+	// 		totalMaybe += opt.MaybeCount
+	// 		totalUnavailable += opt.UnavailableCount
+	// 	}
+
+	// 	result = append(result, map[string]interface{}{
+	// 		"session":  i,
+	// 		"schedule": schedule,
+	// 		"metrics": map[string]interface{}{
+	// 			"total_weighted_score": totalWeightedScore,
+	// 			"total_conflicts":      totalConflicts,
+	// 			"total_available":      totalAvailable,
+	// 			"total_maybe":          totalMaybe,
+	// 			"total_unavailable":    totalUnavailable,
+	// 		},
+	// 	})
+	// }
+
+	// 計算時間を計測
+	elapsedTime := time.Since(startTime)
+
+	// // 結果をクライアントに返却
 	// c.JSON(http.StatusOK, gin.H{
-	// 	"suggested_schedule": bestSchedule,
-	// 	"metrics": gin.H{
-	// 		"total_weighted_score":   totalWeightedScore,
-	// 		"total_conflicts":        totalConflicts,
-	// 		"total_available":        totalAvailable,
-	// 		"total_maybe":            totalMaybe,
-	// 		"performance_count":      perfCount,
-	// 		"scheduled_performances": len(bestSchedule),
-	// 		"computation_time_ms":    float64(elapsedTime.Microseconds()) / 1000.0,
-	// 	},
+	// 	"multi_session_schedules": result,
+	// 	"session_count":           sessionCount,
+	// 	"computation_time_ms":     float64(elapsedTime.Microseconds()) / 1000.0,
 	// })
+	for _, opt := range optimizedSchedule {
+		totalWeightedScore += opt.WeightedScore
+		totalConflicts += opt.ConflictCount
+		totalAvailable += opt.AvailableCount
+		totalMaybe += opt.MaybeCount
+		totalUnavailable += opt.UnavailableCount
+	}
+	// 6. 結果の返却
+	c.JSON(http.StatusOK, gin.H{
+		"suggested_schedule": optimizedSchedule,
+		"metrics": gin.H{
+			"total_weighted_score":   totalWeightedScore,
+			"total_conflicts":        totalConflicts,
+			"total_available":        totalAvailable,
+			"total_maybe":            totalMaybe,
+			"total_unavailable":      totalUnavailable,
+			"performance_count":      expandedPerfCount,
+			"scheduled_performances": len(bestSchedule),
+			"computation_time_ms":    float64(elapsedTime.Microseconds()) / 1000.0,
+		},
+	})
 }

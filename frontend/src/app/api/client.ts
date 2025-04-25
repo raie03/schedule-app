@@ -8,6 +8,7 @@ import {
   ConflictReport,
   PerformanceScore,
   OptimalScheduleResponse,
+  MultiSessionSchedule,
 } from '../../types/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
@@ -64,3 +65,11 @@ export const suggestOptimalSchedule = async (
     const response = await api.get<OptimalScheduleResponse>(`/events/${eventId}/optimal-schedule`);
     return response.data;
   };
+
+  // 複数セッションの最適スケジュールを提案する
+export const suggestOptimalMultiSchedule = async(
+  eventId: string
+): Promise<OptimalScheduleResponse> => {
+  const response = await api.get<OptimalScheduleResponse>(`/events/${eventId}/multi-optimal-schedule`);
+  return response.data; 
+}

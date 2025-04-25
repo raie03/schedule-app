@@ -248,6 +248,7 @@ func calculateEnergy(schedule Schedule, optionMap map[string]models.ScoredOption
 
 	// 参加可能人数
 	totalAvailable := 0.0
+	totalUnavailable := 0.0
 
 	// 各パフォーマンスとその日付について
 	for perfID, dateID := range schedule {
@@ -259,7 +260,7 @@ func calculateEnergy(schedule Schedule, optionMap map[string]models.ScoredOption
 
 			// 参加不可人数（多いほど悪い → そのままプラスで最小化問題に）
 			// 必要に応じてコメントアウトを解除
-			// totalUnavailable += float64(opt.UnavailableCount) * 0.5
+			totalUnavailable += float64(opt.UnavailableCount) * 20
 		}
 
 		// コンフリクトの計算: 同じ日に複数のパフォーマンスに参加するユーザー
@@ -293,6 +294,7 @@ func calculateEnergy(schedule Schedule, optionMap map[string]models.ScoredOption
 
 	// 日付の重複にペナルティを加える
 	dateOverlapPenalty := 0.0
+	// samePerfCount := 0.0
 	for _, perfs := range dateToPerfs {
 		if len(perfs) > 1 {
 			// 日付あたりのパフォーマンス数が多いほど大きなペナルティ
@@ -300,11 +302,35 @@ func calculateEnergy(schedule Schedule, optionMap map[string]models.ScoredOption
 		}
 	}
 
+	// 同じパフォーマンスの複数の練習が同じ日に行われることへの強いペナルティ
+	samePerformancePenalty := 0.0
+
+	// 各日付ごとに、同じ元パフォーマンスIDが複数割り当てられているか確認
+	for _, perfs := range dateToPerfs {
+		// 元の演目ID (perfID/100) ごとのカウント
+		origPerfCounts := make(map[uint]int)
+
+		for _, perfID := range perfs {
+			origPerfID := perfID / 100 // 元の演目ID
+			origPerfCounts[origPerfID]++
+		}
+
+		// 同じ演目が同じ日に複数回練習が割り当てられている場合、大きなペナルティ
+		for _, count := range origPerfCounts {
+			if count > 1 {
+				// より強いペナルティを加える（1つの同じ演目につき50ポイント）
+				samePerformancePenalty += float64(count * count * 50)
+			}
+		}
+	}
+
 	// 総合的なエネルギー計算
 	// - コンフリクト: 大きな重みで
 	// - 参加可能人数: 負の値として
+	// - 参加不可人数: プラスとして
 	// - 日付重複: ペナルティとして
-	return (totalConflicts * 15.0) + totalAvailable + dateOverlapPenalty
+	// - 同じパフォーマンス練習の同日設定: 非常に大きなペナルティ
+	return (totalConflicts * 12.0) + totalAvailable + totalUnavailable + dateOverlapPenalty + samePerformancePenalty
 }
 
 // acceptSolution はエネルギーの差と温度に基づいて新しい解を受け入れるかを判定します
@@ -332,4 +358,36 @@ func copySchedule(schedule Schedule) Schedule {
 // getOptionKey はパフォーマンスIDと日付IDからルックアップキーを生成します
 func getOptionKey(perfID, dateID uint) string {
 	return fmt.Sprintf("%d-%d", perfID, dateID)
+}
+
+// ExpandPerformancesForMultipleSessions はパフォーマンスを練習回数分に複製します
+func ExpandPerformancesForMultipleSessions(originalPerfs []models.Performance, sessionCount int) []models.Performance {
+	expandedPerfs := make([]models.Performance, 0, len(originalPerfs)*sessionCount)
+
+	for _, perf := range originalPerfs {
+		for i := 1; i <= sessionCount; i++ {
+			// 複製して新しいIDと名前を付与
+			sessionPerf := models.Performance{
+				ID:      perf.ID*100 + uint(i), // 一意のIDを生成 (例: ID=5 → 501, 502, 503)
+				Title:   perf.Title,
+				EventID: perf.EventID,
+				// その他必要なフィールドがあればコピー
+			}
+			expandedPerfs = append(expandedPerfs, sessionPerf)
+		}
+	}
+
+	return expandedPerfs
+}
+
+// OptimizeScheduleWithMultipleSessions は練習回数分に拡張したパフォーマンスに対して最適化を行います
+func OptimizeScheduleWithMultipleSessions(allOptions []models.ScoredOption,
+	origPerfCount int, dateCount int,
+	sessionCount int,
+	users map[string]*models.UserData) []models.ScoredOption {
+	// 拡張された数のパフォーマンス（元の数 × セッション数）
+	expandedPerfCount := origPerfCount * sessionCount
+
+	// 通常の最適化を実行（拡張されたパフォーマンス数を使用）
+	return OptimizeSchedule(allOptions, expandedPerfCount, dateCount, users)
 }
