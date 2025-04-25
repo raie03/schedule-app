@@ -22,8 +22,6 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // イベントハンドラー関数は変更なし
-
   const handleAddDate = () => {
     setDates([...dates, ""]);
   };
@@ -40,7 +38,6 @@ export default function Home() {
     setDates(newDates);
   };
 
-  // handleAddBulkDates 関数を追加
   const handleAddBulkDates = (newDates: string[]) => {
     setDates([...dates, ...newDates]);
   };

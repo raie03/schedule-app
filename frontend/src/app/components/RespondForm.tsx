@@ -33,6 +33,22 @@ const RespondForm: React.FC<RespondFormProps> = ({ event }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name) {
+      setError("名前を入力してください。");
+      return;
+    }
+    if (Object.keys(answers).length === 0) {
+      setError("日程の回答を選択してください。");
+      return;
+    }
+    if (Object.keys(answers).length !== event.dates.length) {
+      setError("すべての日程に回答してください。");
+      return;
+    }
+    if (performances.length === 0) {
+      setError("少なくとも1つのプロジェクトを選択してください。");
+      return;
+    }
     try {
       await addResponse(event.id, { name, answers, performances });
       alert("回答が送信されました！");
