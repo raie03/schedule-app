@@ -55,7 +55,7 @@ const RespondForm: React.FC<RespondFormProps> = ({ event }) => {
       await addResponse(event.id, { name, answers, performances });
       alert("回答が送信されました！");
       //リダイレクト
-      router.push(`/events/${event.id}`);
+      router.refresh();
     } catch (err) {
       console.error("Error submitting response:", err);
       setError("回答の送信に失敗しました。");
