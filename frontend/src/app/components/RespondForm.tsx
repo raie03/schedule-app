@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { addResponse } from "@/app/api/client";
 import { Event } from "@/types/types";
+import { useRouter } from "next/navigation";
 
 interface RespondFormProps {
   event: Event;
 }
 
 const RespondForm: React.FC<RespondFormProps> = ({ event }) => {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [answers, setAnswers] = useState<
     Record<number, "available" | "maybe" | "unavailable">
@@ -53,6 +55,7 @@ const RespondForm: React.FC<RespondFormProps> = ({ event }) => {
       await addResponse(event.id, { name, answers, performances });
       alert("回答が送信されました！");
       //リダイレクト
+      router.push(`/events/${event.id}`);
     } catch (err) {
       console.error("Error submitting response:", err);
       setError("回答の送信に失敗しました。");

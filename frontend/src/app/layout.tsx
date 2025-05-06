@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Schedule App - シンプルで効率的なスケジュール調整",
-  description: "シンプルで効率的なスケジュール調整",
+  title: "Schedule App - プロジェクト・日程調整アプリ",
+  description: "プロジェクトごとの参加者の日程を効率的に調整",
   keywords: "スケジュール, 調整, 予定, 練習, ミーティング, プロジェクト",
 };
 
