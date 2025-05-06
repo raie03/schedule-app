@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { addResponse } from "@/app/api/client";
 import { Event } from "@/types/types";
-import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 interface RespondFormProps {
   event: Event;
 }
 
 const RespondForm: React.FC<RespondFormProps> = ({ event }) => {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [answers, setAnswers] = useState<
     Record<number, "available" | "maybe" | "unavailable">
@@ -53,9 +52,17 @@ const RespondForm: React.FC<RespondFormProps> = ({ event }) => {
     }
     try {
       await addResponse(event.id, { name, answers, performances });
-      alert("回答が送信されました！");
-      //リダイレクト
-      router.refresh();
+      toast.success("回答が送信されました！");
+
+      // フォームをリセット
+      setName("");
+      setAnswers({});
+      setPerformances([]);
+
+      // 少し遅延してからリロード
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000); // 1秒後にリロード
     } catch (err) {
       console.error("Error submitting response:", err);
       setError("回答の送信に失敗しました。");
