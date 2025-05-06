@@ -282,11 +282,6 @@ const EventPage = () => {
           </div>
         )}
       </main>
-
-      {/* フッター */}
-      <footer className="mt-12 pt-8 pb-4 text-center text-gray-500 text-sm">
-        <p>© 2025 日程調整アプリ All rights reserved.</p>
-      </footer>
     </div>
   );
 };

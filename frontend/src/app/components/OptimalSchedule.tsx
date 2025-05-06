@@ -20,7 +20,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({ eventId }) => {
       try {
         setLoading(true);
         const result = await suggestOptimalMultiSchedule(eventId);
-        console.log("Optimal schedule response:", result); // デバッグ用
+        // console.log("Optimal schedule response:", result); // デバッグ用
         setSchedule(result.suggested_schedule || []);
         // setMetrics(result.metrics || null);
         setError("");
@@ -47,7 +47,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({ eventId }) => {
 
   // 日付ごとにパフォーマンスをグループ化
   const scheduleByDate = schedule.reduce((acc, item) => {
-    console.log("Item:", item); // デバッグ用
+    // console.log("Item:", item); // デバッグ用
     if (!acc[item.date_id]) {
       acc[item.date_id] = [];
     }
@@ -62,35 +62,6 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({ eventId }) => {
     <div className="bg-white shadow-md rounded-lg p-6">
       <h2 className="text-2xl font-bold mb-4">最適なスケジュール提案</h2>
 
-      {/* パフォーマンスメトリクス
-      {metrics && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-md">
-          <h3 className="text-lg font-semibold mb-2">スケジュールの品質</h3>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
-            <div className="bg-blue-50 p-2 rounded">
-              <span className="font-medium">スコア: </span>
-              {metrics.total_weighted_score !== undefined
-                ? metrics.total_weighted_score.toFixed(2)
-                : "N/A"}
-            </div>
-            <div className="bg-yellow-50 p-2 rounded">
-              <span className="font-medium">コンフリクト: </span>
-              {metrics.total_conflicts ?? "N/A"}
-            </div>
-            <div className="bg-green-50 p-2 rounded">
-              <span className="font-medium">参加可能者数: </span>
-              {metrics.total_available ?? "N/A"}
-            </div>
-            <div className="bg-purple-50 p-2 rounded">
-              <span className="font-medium">計算時間: </span>
-              {metrics.computation_time_ms !== undefined
-                ? `${metrics.computation_time_ms.toFixed(2)}ms`
-                : "N/A"}
-            </div>
-          </div>
-        </div>
-      )} */}
-
       {/* スケジュールテーブル */}
       <div className="overflow-x-auto">
         <table className="min-w-full">
@@ -101,7 +72,7 @@ const OptimalSchedule: React.FC<OptimalScheduleProps> = ({ eventId }) => {
               <th className="py-2 px-4 text-left">可能</th>
               <th className="py-2 px-4 text-left">たぶん</th>
               <th className="py-2 px-4 text-left">不可</th>
-              <th className="py-2 px-4 text-left">コンフリクト</th>
+              <th className="py-2 px-4 text-left">被り</th>
               {/* <th className="py-2 px-4 text-left">スコア</th> */}
             </tr>
           </thead>

@@ -454,7 +454,7 @@ export default function Home() {
             </div>
             <h3 className="text-lg font-semibold mb-2">プロジェクト別管理</h3>
             <p className="text-gray-600">
-              参加者ごとに異なるプロジェクトの組み合わせを柔軟に管理できます。
+              参加者ごとに異なるプロジェクトの組み合わせを管理できます。
             </p>
           </div>
 
@@ -475,17 +475,12 @@ export default function Home() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold mb-2">最適スケジュール提案</h3>
+            <h3 className="text-lg font-semibold mb-2">スケジュール提案</h3>
             <p className="text-gray-600">
-              競合を最小限に抑えた最適なスケジュール案を自動で提案します。
+              プロジェクトの重複を最小限に抑えたスケジュール案を提案します。
             </p>
           </div>
         </div>
-
-        {/* フッター */}
-        <footer className="mt-16 text-center text-gray-500 text-sm">
-          <p>© 2025 プロジェクト・日程調整アプリ All rights reserved.</p>
-        </footer>
       </main>
     </div>
   );
